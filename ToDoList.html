@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #74ebd5, #acb6e5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            width: 1000px;
+            text-align: center;
+        }
+
+        h2 {
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #f4f4f4;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        
+        input, select, button {
+            padding: 8px;
+            margin: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            cursor: pointer;
+            background: #28a745;
+            color: white;
+        }
+
+        button:hover {
+            background: #218838;
+        }
+
+        .delete-btn {
+            background: #dc3545; 
+            color: white;
+        }
+
+        .delete-btn:hover {
+            background: #c82333; 
+        }
+
+        .status-select {
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            transition: background-color 0.3s ease;
+        }
+        
+        /* Warna dasar berdasarkan status */
+        .status-select.not-started {
+            background: #ffdd57; /* Kuning lebih lembut */
+            color: black;
+        }
+
+        .status-select.in-progress {
+            background: #3792cb; /* Biru */
+            color: white;
+        }
+
+        .status-select.completed {
+            background: #3fb34f; /* Hijau */
+            color: white;
+        }  
+        
+        /* Warna saat hover */
+        .status-select.not-started:hover {
+            background: #e6c13b; /* Kuning lebih gelap */
+        }
+
+        .status-select.in-progress:hover {
+            background: #2d7fa8; /* Biru lebih gelap */
+        }
+        
+        .status-select.completed:hover {
+            background: #2e8f3b; /* Hijau lebih gelap */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>To Do List</h2>
+        <input type="text" id="taskTitle" placeholder="Masukkan nama tugas..." title="Nama tugas wajib diisi" />
+        <input type="date" id="taskDeadline" title="Pilih tanggal deadline" />
+        <input type="text" id="taskDesc" placeholder="Masukkan deskripsi..." title="Deskripsi tugas" />
+        <button onclick="addTask()">Add</button>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Task Name</th>
+                    <th>Due Date</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="taskList"></tbody>
+        </table>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", renderTasks);
+
+        function addTask() {
+            let title = document.getElementById("taskTitle").value.trim();
+            let deadline = document.getElementById("taskDeadline").value;
+            let desc = document.getElementById("taskDesc").value.trim();
+
+            // Validasi input
+            if (title === "" || deadline === "") {
+                alert("Nama tugas dan deadline wajib diisi!");
+                return;
+            }
+
+            if (!title.replace(/\s/g, '').length || !desc.replace(/\s/g, '').length) {
+                alert("Nama tugas dan deskripsi tidak boleh hanya berisi spasi!");
+                return;
+            }
+
+            let tasks = getTasksFromLocalStorage();
+            let newTask = {
+                id: Date.now(),
+                title,
+                deadline,
+                desc,
+                status: "Not started"
+            };
+
+            tasks.push(newTask);
+            localStorage.setItem("tasks", JSON.stringify(tasks));
+            renderTasks();
+
+            // Reset form setelah submit
+            document.getElementById("taskTitle").value = "";
+            document.getElementById("taskDeadline").value = "";
+            document.getElementById("taskDesc").value = "";
+            document.getElementById("taskTitle").focus();
+        }
+
+        function renderTasks() {
+            let taskList = document.getElementById("taskList");
+            taskList.innerHTML = "";
+            let tasks = getTasksFromLocalStorage();
+        
+            tasks.sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+        
+            tasks.forEach((task) => {
+                let statusClass = task.status === "Not started" ? "not-started" 
+                                : task.status === "In progress" ? "in-progress" 
+                                : "completed";
+        
+                let row = document.createElement("tr");
+                row.innerHTML = `
+                    <td contenteditable="true" onblur="editTask(${task.id}, 'title', this.textContent)">${task.title}</td>
+                    <td><input type="date" value="${task.deadline}" onchange="editTask(${task.id}, 'deadline', this.value)"/></td>
+                    <td contenteditable="true" onblur="editTask(${task.id}, 'desc', this.textContent)">${task.desc}</td>
+                    <td>
+                        <select class="status-select ${statusClass}" onchange="changeStatus(this, ${task.id})">
+                            <option value="Not started" ${task.status === "Not started" ? "selected" : ""}>Not started</option>
+                            <option value="In progress" ${task.status === "In progress" ? "selected" : ""}>In progress</option>
+                            <option value="Completed" ${task.status === "Completed" ? "selected" : ""}>Completed</option>
+                        </select>
+                    </td>
+                    <td><button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button></td>
+                `;
+                taskList.appendChild(row);
+            });
+        }        
+
+        function editTask(taskId, field, value) {
+            let tasks = getTasksFromLocalStorage();
+            let taskIndex = tasks.findIndex(task => task.id === taskId);
+            if (taskIndex !== -1) {
+                tasks[taskIndex][field] = value;
+                localStorage.setItem("tasks", JSON.stringify(tasks));
+            }
+        }
+
+        function changeStatus(selectElement, taskId) {
+            let selectedValue = selectElement.value;
+            
+            // Perbarui kelas agar sesuai dengan status
+            selectElement.classList.remove("not-started", "in-progress", "completed");
+        
+            if (selectedValue === "Not started") {
+                selectElement.classList.add("not-started");
+            } else if (selectedValue === "In progress") {
+                selectElement.classList.add("in-progress");
+            } else if (selectedValue === "Completed") {
+                selectElement.classList.add("completed");
+            }
+        
+            // Simpan perubahan status ke localStorage
+            editTask(taskId, "status", selectedValue);
+        }
+        
+        function deleteTask(taskId) {
+            if (confirm("Apakah kamu yakin ingin menghapus tugas ini?")) {
+                let tasks = getTasksFromLocalStorage();
+                tasks = tasks.filter(task => task.id !== taskId);
+                localStorage.setItem("tasks", JSON.stringify(tasks));
+                renderTasks();
+            }
+        }
+
+        function getTasksFromLocalStorage() {
+            return JSON.parse(localStorage.getItem("tasks")) || [];
+        }
+    </script>
+
+</body>
+</html>
